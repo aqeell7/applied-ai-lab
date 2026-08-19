@@ -2,22 +2,21 @@ import OpenAI from "openai";
 import "dotenv/config"
 
 const question = process.argv.slice(2).join(" ")
-
-const openai = new OpenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    baseURL:"https://generativelanguage.googleapis.com/v1beta/openai/"
-})
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
 
 async function main(){
 
-if(!question){
-      return console.log("you forgot to enter your question, please enter your question after npx tsx src/index.ts")
+    if(!question){
+        return console.log("you forgot to enter your question, please enter your question after npx tsx src/index.ts")
     }
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
     if(!GEMINI_API_KEY){
         return console.log("there is not api key or unable to fetch key")
     } 
+
+    const openai = new OpenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        baseURL:"https://generativelanguage.googleapis.com/v1beta/openai/"
+    })
 
     try{
      const completions = await openai.chat.completions.create({
@@ -43,7 +42,11 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     }
 
     }catch(error){
-        console.log(error)
+        if(error instanceof Error){
+            console.log("Something went wrong:", error.message)
+        }else{
+            console.log("unknown error:", error)
+        }
     }
 }
 

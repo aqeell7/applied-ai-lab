@@ -28,3 +28,19 @@ export const API_RATES: Record<ModelName, ModelPricing> = {
     outputPrice: 0.4,
   },
 };
+
+export interface TextCostInput {
+  model: ModelName;
+  text: string;
+  outputTokens: number;
+  cachedTokens?: number;
+}
+
+export interface TokenCountCostInput{
+  model: ModelName;
+  inputTokens: number;
+  outputTokens: number,
+  cachedTokens?: number
+}
+
+export type costEstimateParams = TextCostInput | TokenCountCostInput;

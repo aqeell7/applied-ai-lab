@@ -1,45 +1,56 @@
-import OpenAI from "openai";
-import 'dotenv/config'
 import { getEncoding } from "js-tiktoken";
 import { API_RATES, type ModelName } from "./prices.js";
+import { costEstimateParams } from "./prices.js";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+export function countTokens(text: string, model:ModelName){
 
-const openai = new OpenAI({
-    apiKey: OPENAI_API_KEY
-});
+    if(!text || text.trim()=== ""){
+        return 0;
+    }
 
-const question = process.argv.slice(2).join(" ");
+    if(!(model in API_RATES)){
+        throw new Error(`Unknown model: "${model}"`)
+    }
 
-async function main(){ 
-    try{
-      function countTokens(question:string, model: ModelName){
+    const enc = getEncoding("o200k_base");
+    const tokens = enc.encode(text);
 
-       const enc = getEncoding("o200k_base");
+    return tokens.length;
+}
 
-       const tokens = enc.encode(question);
-       const tokenCount = tokens.length;
+export function estimateCost(params: costEstimateParams){
+    let totalInputTokens: number;
 
-       const rates = API_RATES[model]
+    if("text" in params){
+        totalInputTokens = countTokens(params.text, params.model)
+    }else{
+        totalInputTokens = params.inputTokens;
+    }
 
-       const inputCost = (tokenCount/ 1000000 )* rates.inputPrice
-       const cacheCost = (tokenCount/ 1000000 )* rates.cacheInputPrice
-       const outputCost = (tokenCount/ 1000000 )* rates.outputPrice
+    const rates = API_RATES[params.model]
 
-       console.log(`Token count: ${tokenCount}`)
-       console.log(`Input cost: ${inputCost.toFixed(6)}`)
-       console.log(`Cache input cost: ${cacheCost.toFixed(6)}`)
-       console.log(`Output cost: ${outputCost.toFixed(6)}`)
-      } 
+    if(!rates){
+        throw new Error(`Unknown model:"${params.model}"`)
+    }
 
-      countTokens(question, "gpt-5-nano")
-        
-    }catch(error){
-        console.error("Error calculating tokens:", error)
+    const cachedTokens = params.cachedTokens ?? 0;
+    const regularTokens = Math.max(0, totalInputTokens - cachedTokens)
+
+    const regularInputCost = (regularTokens/1000000)*rates.inputPrice;
+    const cachedInputCost = (cachedTokens/1000000)*rates.cacheInputPrice;
+    const outputCost = (params.outputTokens/1000000)*rates.outputPrice
+
+    const inputCost = regularInputCost + cachedInputCost;
+
+    const totalCost = inputCost + outputCost;
+
+    return {
+        inputCost: inputCost,
+        outputCost: outputCost,
+        totalCost: totalCost
     }
 }
 
-main()
 
 // try{ 
 //     if(!OPENAI_API_KEY){

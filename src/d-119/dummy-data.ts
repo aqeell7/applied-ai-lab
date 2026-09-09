@@ -69,7 +69,7 @@ export function getCityTime(city:string):string{
     return `The time data for this ${city} doesnt exist`
 }
 
-export function getconvertCurrency(amount:number, from:string, to:string):string{
+export function convertCurrency(amount:number, from:string, to:string):string{
 
     const fromCurrency = from.trim().toUpperCase()
     const toCurrency = to.trim().toUpperCase()

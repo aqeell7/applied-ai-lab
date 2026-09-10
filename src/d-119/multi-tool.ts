@@ -5,6 +5,7 @@ import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from "openai/resources";
+import { string, z } from "zod";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const question = process.argv.slice(2).join(" ");
@@ -21,6 +22,16 @@ const messages: ChatCompletionMessageParam[] = [
   },
   { role: "user", content: question },
 ];
+
+const weatherTimeSchema = z.object({
+  city:z.string()
+})
+
+const currencySchema = z.object({
+  amount:z.number(),
+  from:z.string(),
+  to:z.string()
+})
 
 async function toolcalling() {
   try {
@@ -60,8 +71,17 @@ async function toolcalling() {
 
       console.log("Running:", toolCall.function.name, "with", parsedArgs);
 
+      const check = validateArgs("convertCurrency", { amount: "ten thousand", from: "INR", to: "USD" });
+      
+      let toolResult:string
+
+      if(check.ok){
+        toolResult = runTool(toolCall.function.name, check.data);
+      }else{
+        toolResult = JSON.stringify({ error:check.error})
+      }
+
       // Run the real function and CATCH what it returns.
-      const toolResult = runTool(toolCall.function.name, parsedArgs);
 
       // Push ONE result per call, tagged with THIS call's id so the model
       // knows which answer belongs to which request.
@@ -101,7 +121,7 @@ function argParsing(argument: string) {
 // WORKER: given a tool name + clean args, run the matching function and
 // return its result string. Case labels MUST match the schema names exactly.
 function runTool(toolName: string, argument: Record<string, any>): string {
-  let toolResult = "";
+  let toolResult:string
   switch (toolName) {
     case "getWeather":
       toolResult = getCityWeather(argument.city);
@@ -118,6 +138,30 @@ function runTool(toolName: string, argument: Record<string, any>): string {
       break;
   }
   return toolResult;
+}
+
+function validateArgs(toolName:string, parsedArgs: Record<string, any>):{ok: true; data: Record<string, any>} |{ok:false; error:string}{
+  let result;
+
+  switch(toolName){
+    case "getWeather":
+    case "getCityTime":
+      result = weatherTimeSchema.safeParse(parsedArgs)
+      break;
+
+    case "convertCurrency":
+      result = currencySchema.safeParse(parsedArgs)
+      break;
+
+    default:
+      return { ok:false, error: `Unknown tool:${toolName}`}  
+  }
+
+  if(result.success){
+    return { ok: true, data:result.data};
+  }else{
+    return { ok:false, error:result.error.message}
+  }
 }
 
 // The 3 tools the model can pick from. "parameters" is JSON Schema — its
